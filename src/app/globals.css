@@ -21,6 +21,10 @@
   --font-mono: var(--font-geist-mono);
 }
 
+html {
+  scroll-padding-top: 68px;
+}
+
 html,
 body {
   background:

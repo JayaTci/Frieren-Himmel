@@ -1,144 +1,25 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { EyebrowBadge } from "@/components/ui/EyebrowBadge";
 import { HudFrame } from "@/components/ui/HudFrame";
 import { DIALOGUES, HERO_TEXT_FADE_END } from "@/lib/hero";
+import { useScrollDrivenVideo } from "@/hooks/useScrollDrivenVideo";
 
 export function Hero() {
   const sectionRef = useRef<HTMLElement | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
   const heroTextRef = useRef<HTMLDivElement | null>(null);
   const bigLeftTextRef = useRef<HTMLDivElement | null>(null);
   const progressFillRef = useRef<HTMLDivElement | null>(null);
   const powerReadoutRef = useRef<HTMLSpanElement | null>(null);
 
-  // Seek tracking refs — avoids stacking seeks during fast scroll
-  const seekingRef = useRef(false);
-  const targetTimeRef = useRef(0);
   const tickingRef = useRef(false);
-  const loadedRef = useRef(false);
   const prevVisibleIdsRef = useRef("");
 
-  const [loadProgress, setLoadProgress] = useState(0);
-  const [loaded, setLoaded] = useState(false);
   const [visibleCards, setVisibleCards] = useState<Set<string>>(new Set());
 
-  /**
-   * Draws the current video frame to the canvas with cover-fill scaling.
-   * Called after each successful seek via video.onseeked.
-   */
-  const drawVideoFrame = useCallback(() => {
-    const canvas = canvasRef.current;
-    const video = videoRef.current;
-    if (!canvas || !video || !video.videoWidth) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    const cw = canvas.width;
-    const ch = canvas.height;
-    const imgRatio = video.videoWidth / video.videoHeight;
-    const canvasRatio = cw / ch;
-
-    let drawW: number;
-    let drawH: number;
-    if (canvasRatio > imgRatio) {
-      drawW = cw;
-      drawH = cw / imgRatio;
-    } else {
-      drawH = ch;
-      drawW = ch * imgRatio;
-    }
-
-    if (window.innerWidth <= 768) {
-      drawW *= 1.3;
-      drawH *= 1.3;
-    }
-
-    const drawX = (cw - drawW) / 2;
-    const drawY = (ch - drawH) / 2;
-
-    ctx.clearRect(0, 0, cw, ch);
-    ctx.drawImage(video, drawX, drawY, drawW, drawH);
-  }, []);
-
-  /**
-   * Sets up video loading handlers — tracks buffer progress and fires loaded
-   * state once the browser has enough data to play through without stalling.
-   */
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    const onProgress = () => {
-      if (video.buffered.length > 0 && video.duration > 0) {
-        const bufferedEnd = video.buffered.end(video.buffered.length - 1);
-        setLoadProgress(bufferedEnd / video.duration);
-      }
-    };
-
-    const onCanPlay = () => {
-      loadedRef.current = true;
-      setLoadProgress(1);
-      setLoaded(true);
-    };
-
-    video.addEventListener("progress", onProgress);
-    video.addEventListener("canplaythrough", onCanPlay);
-
-    // If already cached and ready, fire immediately
-    if (video.readyState >= 4) onCanPlay();
-
-    return () => {
-      video.removeEventListener("progress", onProgress);
-      video.removeEventListener("canplaythrough", onCanPlay);
-    };
-  }, []);
-
-  /**
-   * Wires up video.onseeked so the canvas redraws after each seek.
-   * If scroll moved past the sought frame while seeking, seeks again to catch up.
-   */
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    video.onseeked = () => {
-      drawVideoFrame();
-      const delta = Math.abs(video.currentTime - targetTimeRef.current);
-      if (delta > 0.04) {
-        video.currentTime = targetTimeRef.current;
-      } else {
-        seekingRef.current = false;
-      }
-    };
-
-    return () => {
-      video.onseeked = null;
-    };
-  }, [drawVideoFrame]);
-
-  const resizeCanvas = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    canvas.style.width = window.innerWidth + "px";
-    canvas.style.height = window.innerHeight + "px";
-    drawVideoFrame();
-  }, [drawVideoFrame]);
-
-  useEffect(() => {
-    resizeCanvas();
-    window.addEventListener("resize", resizeCanvas);
-    return () => window.removeEventListener("resize", resizeCanvas);
-  }, [resizeCanvas]);
-
-  useEffect(() => {
-    if (!loaded) return;
-    drawVideoFrame();
-  }, [loaded, drawVideoFrame]);
+  const { videoRef, canvasRef, loaded, loadProgress, loadedRef, seekTo } =
+    useScrollDrivenVideo("/source-media/processed-videos/intro.mp4");
 
   useEffect(() => {
     const handleScroll = () => {
@@ -148,8 +29,7 @@ export function Hero() {
       requestAnimationFrame(() => {
         tickingRef.current = false;
         const section = sectionRef.current;
-        const video = videoRef.current;
-        if (!section || !loadedRef.current || !video || !video.duration) return;
+        if (!section || !loadedRef.current) return;
 
         const rect = section.getBoundingClientRect();
         const scrollable = section.offsetHeight - window.innerHeight;
@@ -158,13 +38,7 @@ export function Hero() {
             ? 0
             : Math.min(1, Math.max(0, -rect.top / scrollable));
 
-        // Seek video to scroll-mapped time
-        const targetTime = progress * video.duration;
-        targetTimeRef.current = targetTime;
-        if (!seekingRef.current) {
-          seekingRef.current = true;
-          video.currentTime = targetTime;
-        }
+        seekTo(progress);
 
         if (heroTextRef.current) {
           const opacity = Math.max(0, 1 - progress / HERO_TEXT_FADE_END);
@@ -202,14 +76,13 @@ export function Hero() {
     window.addEventListener("scroll", handleScroll, { passive: true });
     handleScroll();
     return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
+  }, [seekTo, loadedRef]);
 
   return (
-    <section ref={sectionRef} className="scroll-animation relative">
-      {/* Hidden video element — canvas reads frames from it via drawImage */}
+    <section ref={sectionRef} id="hero" className="scroll-animation relative">
+      {/* Hidden video element — frames drawn to canvas via drawImage */}
       <video
         ref={videoRef}
-        src="/source-media/processed-videos/intro.mp4"
         muted
         playsInline
         preload="auto"
@@ -305,7 +178,7 @@ export function Hero() {
         </div>
 
         <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10">
-          <div className="mx-6 mb-3 h-px bg-white/10 md:mx-10">
+          <div className="mx-6 mb-3 h-0.5 bg-white/10 md:mx-10">
             <div
               ref={progressFillRef}
               className="h-full origin-left bg-accent"
@@ -351,30 +224,31 @@ export function Hero() {
           );
         })}
 
-        <div className="pointer-events-none absolute inset-x-0 top-[38%] z-20 flex flex-col gap-3 px-6 md:hidden">
+        {/* Mobile stack — collapsing wrappers prevent off-screen overflow on short phones */}
+        <div className="pointer-events-none absolute inset-x-0 top-[38%] z-20 flex flex-col px-6 md:hidden">
           {DIALOGUES.map((d) => {
             const visible = visibleCards.has(d.id);
             return (
-              <figure
+              <div
                 key={d.id}
-                className={`card-surface pointer-events-auto p-5 transition-all duration-400 ease-out ${
-                  visible
-                    ? "translate-y-0 opacity-100"
-                    : "translate-y-4 opacity-0"
+                className={`overflow-hidden transition-[max-height,margin] duration-400 ease-out ${
+                  visible ? "mb-3 max-h-60" : "mb-0 max-h-0"
                 }`}
               >
-                <blockquote className="font-sans text-base font-medium leading-snug text-foreground">
-                  &ldquo;{d.quote}&rdquo;
-                </blockquote>
-                <figcaption className="mt-3 flex items-center justify-between">
-                  <span className="font-sans text-xs text-zinc-300">
-                    {d.speaker}
-                  </span>
-                  <span className="font-sans text-[10px] tracking-[0.1em] text-accent">
-                    {d.film}
-                  </span>
-                </figcaption>
-              </figure>
+                <figure
+                  className={`card-surface pointer-events-auto p-5 transition-[opacity,transform] duration-400 ease-out ${
+                    visible ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"
+                  }`}
+                >
+                  <blockquote className="font-sans text-base font-medium leading-snug text-foreground">
+                    &ldquo;{d.quote}&rdquo;
+                  </blockquote>
+                  <figcaption className="mt-3 flex items-center justify-between">
+                    <span className="font-sans text-xs text-zinc-300">{d.speaker}</span>
+                    <span className="font-sans text-[10px] tracking-[0.1em] text-accent">{d.film}</span>
+                  </figcaption>
+                </figure>
+              </div>
             );
           })}
         </div>

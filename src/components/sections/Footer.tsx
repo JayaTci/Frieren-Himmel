@@ -1,4 +1,14 @@
 import { ArrowUpRight } from "@phosphor-icons/react/dist/ssr";
+import { SITE } from "@/lib/site";
+
+const NAV_ITEMS: { name: string; note: string; href: string }[] = [
+  { name: "Hero's Party",   note: "Demon King route", href: "#hero" },
+  { name: "Blue-Moon Weed", note: "Northern village",  href: "#hero" },
+  { name: "Era Meteor",     note: "Fifty-year sky",    href: "#cinematic" },
+  { name: "Aureole",        note: "Land of souls",     href: "#cinematic" },
+  { name: "Frieren",        note: "Memory bearer",     href: "#systems" },
+  { name: "Himmel",         note: "The hero",          href: "#farewell" },
+];
 
 export function Footer() {
   return (
@@ -22,20 +32,9 @@ export function Footer() {
             </p>
           </div>
 
-          <nav className="grid grid-cols-2 gap-x-10 gap-y-3 md:grid-cols-3">
-            {[
-              ["Hero's Party", "Demon King route"],
-              ["Blue-Moon Weed", "Northern village"],
-              ["Era Meteor", "Fifty-year sky"],
-              ["Aureole", "Land of souls"],
-              ["Frieren", "Memory bearer"],
-              ["Himmel", "The hero"],
-            ].map(([name, note]) => (
-              <a
-                key={name}
-                href="#"
-                className="group flex flex-col gap-1"
-              >
+          <nav className="grid grid-cols-2 gap-x-10 gap-y-3 md:grid-cols-3" aria-label="Site sections">
+            {NAV_ITEMS.map(({ name, note, href }) => (
+              <a key={name} href={href} className="group flex flex-col gap-1">
                 <span className="font-sans text-[13px] font-medium text-foreground transition-colors group-hover:text-accent">
                   {name}
                   <ArrowUpRight
@@ -53,7 +52,7 @@ export function Footer() {
         </div>
 
         <div className="flex flex-col gap-2 border-t border-white/5 pt-6 font-sans text-[11px] tracking-[0.12em] text-zinc-400 md:flex-row md:items-center md:justify-between">
-          <span>Built 2026.05.06 &nbsp;&middot;&nbsp; Hero&apos;s Party &nbsp;&middot;&nbsp; A remembered journey</span>
+          <span>Built {SITE.buildDate} &nbsp;&middot;&nbsp; Hero&apos;s Party &nbsp;&middot;&nbsp; A remembered journey</span>
           <span>Proof of concept &mdash; fan tribute, no commercial use</span>
         </div>
       </div>

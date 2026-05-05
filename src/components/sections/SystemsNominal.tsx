@@ -3,13 +3,7 @@
 import { ArrowUpRight } from "@phosphor-icons/react";
 import { EyebrowBadge } from "@/components/ui/EyebrowBadge";
 import { AnimatedItem, AnimatedSection } from "@/components/ui/AnimatedSection";
-
-const telemetry = [
-  { label: "Years Since", value: "28 y", note: "After Himmel's funeral" },
-  { label: "Party Record", value: "10 y", note: "Demon King journey" },
-  { label: "Memory Index", value: "169", note: "Recovered visual frames" },
-  { label: "Aureole Route", value: "North", note: "The place souls rest" },
-];
+import { SITE } from "@/lib/site";
 
 export function SystemsNominal() {
   return (
@@ -51,7 +45,7 @@ export function SystemsNominal() {
         </AnimatedSection>
 
         <AnimatedSection className="flex flex-col divide-y divide-white/8 border-t border-white/8 font-sans md:mt-3">
-          {telemetry.map((row) => (
+          {SITE.telemetry.map((row) => (
             <AnimatedItem key={row.label}>
               <div className="flex items-baseline justify-between gap-6 py-5">
                 <div className="flex flex-col gap-1">

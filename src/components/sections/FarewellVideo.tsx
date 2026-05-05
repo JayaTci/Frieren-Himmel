@@ -34,7 +34,7 @@ export function FarewellVideo() {
     <section
       ref={sectionRef}
       id="farewell"
-      className="relative min-h-screen overflow-hidden border-t border-white/5 bg-background"
+      className="relative min-h-[100dvh] overflow-hidden border-t border-white/5 bg-background"
     >
       <video
         ref={videoRef}

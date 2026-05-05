@@ -1,9 +1,13 @@
 # Source Media
 
-Drop exported Himmel x Frieren image sequences here:
+Three MP4 video files power the scroll and farewell sections:
 
-- `hero/frame_0001.jpg` through `hero/frame_0169.jpg`
-- `cinematic/frame_0001.jpg` through `cinematic/frame_0169.jpg`
+| File | Section | Behaviour |
+|------|---------|-----------|
+| `processed-videos/intro.mp4` | Hero (top) | Canvas scrubbed on scroll |
+| `processed-videos/middle.mp4` | CinematicReveal (middle) | Canvas scrubbed on scroll |
+| `processed-videos/last.mp4` | FarewellVideo (bottom) | Autoplay loop via IntersectionObserver |
 
-Use 16:9 JPG frames, ideally 1920x1080. The app preloads 169 frames per
-section and maps scroll progress directly to frame number.
+The Hero and CinematicReveal sections seek `video.currentTime` proportionally
+to scroll progress and draw each frame to a `<canvas>` via `ctx.drawImage`.
+See `src/hooks/useScrollDrivenVideo.ts` for the shared implementation.
